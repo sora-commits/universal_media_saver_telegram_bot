@@ -36,17 +36,15 @@ This bot receives photos, videos, voice messages, video circles, documents, stic
 1. Copy `.env.example` to `.env`
 2. Open `.env` and fill in your data:
 
-```env
-BOT_TOKEN=1234567890:AAF...your_bot_token_here
-DRIVE_FOLDER_ID=1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890
+BOT_TOKEN=your_bot_token_here
+DRIVE_FOLDER_ID=your_folder_id_here
 
 ### Step 4: Google OAuth Setup (One-time)
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select existing one
 3. Enable **Google Drive API**
-4. Go to **OAuth consent screen** → Create (choose **External**)
-5. Go to **Credentials** → **Create Credentials** → **OAuth client ID**
+4. Go to **Credentials** → **Create Credentials** → **OAuth client ID**
 6. Select **Desktop app** → Create
 7. Download the JSON file and rename it to `client_secret.json`
 
