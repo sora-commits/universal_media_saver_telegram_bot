@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+downloads/
+.env
+*.log
+token.pickle
+client_secret*.json
