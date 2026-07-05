@@ -50,16 +50,7 @@ DRIVE_FOLDER_ID=your_folder_id_here
 
 ### Step 5: First Authorization (Local)
 
-1. Clone or download this repository
-2. Install dependencies:
-
-   ```bash
-   pip install -r requirements.txt
-   
-4. Run the bot:
-   
-   ```bash
-   python main.py
-   
-6. A browser window will open — log in with your Google account and grant access
-7. After success, a token.pickle file will be created
+1. Run the bot (main.py)   
+2. A browser window will open — log in with your Google account and grant access
+3. After success, a token.pickle file will be created
+4. Then you can run the bot locally or use third-party services (I used Railway for testing)
