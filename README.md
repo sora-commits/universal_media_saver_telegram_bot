@@ -31,7 +31,16 @@ This bot receives photos, videos, voice messages, video circles, documents, stic
 2. Open the folder and copy the **Folder ID** from the URL  
    (Example: `1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890`)
 
-### Step 3: Google OAuth Setup (One-time)
+### Step 3: Configure Environment Variables
+
+1. Copy `.env.example` to `.env`
+2. Open `.env` and fill in your data:
+
+```env
+BOT_TOKEN=1234567890:AAF...your_bot_token_here
+DRIVE_FOLDER_ID=1AbCdEfGhIjKlMnOpQrStUvWxYz1234567890
+
+### Step 4: Google OAuth Setup (One-time)
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select existing one
@@ -41,7 +50,7 @@ This bot receives photos, videos, voice messages, video circles, documents, stic
 6. Select **Desktop app** → Create
 7. Download the JSON file and rename it to `client_secret.json`
 
-### Step 4: First Authorization (Local)
+### Step 5: First Authorization (Local)
 
 1. Clone or download this repository
 2. Install dependencies:
