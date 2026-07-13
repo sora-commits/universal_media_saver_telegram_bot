@@ -1,7 +1,12 @@
 import asyncio
+import base64
+import mimetypes
 import os
 import pickle
 from datetime import datetime
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
@@ -10,7 +15,7 @@ from aiogram.types import ContentType
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+from googleapiclient.http import MediaIoBaseUpload
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 DRIVE_FOLDER_ID = os.getenv("DRIVE_FOLDER_ID")
@@ -25,18 +30,22 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file']
 CLIENT_SECRET_FILE = "client_secret.json"
 TOKEN_PATH = "token.pickle"
 
+token_b64 = os.getenv("GOOGLE_TOKEN_B64")
+if token_b64 and not os.path.exists(TOKEN_PATH):
+    with open(TOKEN_PATH, "wb") as f:
+        f.write(base64.b64decode(token_b64))
+
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
 creds = None
-_drive_service = None
+drive_service = None
 
 def get_drive_service():
-    """Returns a cached Google Drive service, refreshing or creating credentials as needed."""
-    global creds, _drive_service
+    global creds, drive_service
 
-    if _drive_service is not None and creds and creds.valid:
-        return _drive_service
+    if drive_service is not None and creds and creds.valid:
+        return drive_service
 
     if creds is None and os.path.exists(TOKEN_PATH):
         with open(TOKEN_PATH, 'rb') as token:
@@ -47,18 +56,15 @@ def get_drive_service():
             creds.refresh(Request())
         else:
             if not os.path.exists(CLIENT_SECRET_FILE):
-                raise FileNotFoundError(
-                    f"{CLIENT_SECRET_FILE} not found. Download it from Google Cloud Console "
-                    "and place it next to main.py (see README, Step 4)."
-                )
+                raise FileNotFoundError(f"{CLIENT_SECRET_FILE} not found, place it next to main.py")
             flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
             creds = flow.run_local_server(port=0)
 
         with open(TOKEN_PATH, 'wb') as token:
             pickle.dump(creds, token)
 
-    _drive_service = build('drive', 'v3', credentials=creds)
-    return _drive_service
+    drive_service = build('drive', 'v3', credentials=creds)
+    return drive_service
 
 def get_file_info(message: types.Message):
     if message.photo:
@@ -82,8 +88,7 @@ def get_file_info(message: types.Message):
         return message.sticker.file_id, "sticker", "webp"
     return None, None, None
 
-def _upload_sync(file_path: str, file_type: str, original_name: str = None):
-    """Blocking upload call — meant to be run in a worker thread."""
+def upload_sync(file_path: str, file_type: str, original_name: str = None):
     service = get_drive_service()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     name = f"{file_type}_{timestamp}"
@@ -91,15 +96,18 @@ def _upload_sync(file_path: str, file_type: str, original_name: str = None):
         name += f"_{original_name}"
 
     file_metadata = {'name': name, 'parents': [DRIVE_FOLDER_ID]}
-    media = MediaFileUpload(file_path, resumable=True)
-    file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+    mime_type, _ = mimetypes.guess_type(file_path)
+    mime_type = mime_type or 'application/octet-stream'
+
+    with open(file_path, 'rb') as fh:
+        media = MediaIoBaseUpload(fh, mimetype=mime_type, resumable=True)
+        file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+
     print(f"Uploaded {file_type}: {file.get('id')}")
     return file.get('id')
 
 async def upload_to_drive(file_path: str, file_type: str, original_name: str = None):
-    # googleapiclient is synchronous — run it off the event loop so the bot
-    # keeps responding to other messages while a large file uploads.
-    return await asyncio.to_thread(_upload_sync, file_path, file_type, original_name)
+    return await asyncio.to_thread(upload_sync, file_path, file_type, original_name)
 
 @dp.message(lambda m: m.content_type != ContentType.TEXT)
 async def handle_media(message: types.Message):
@@ -115,12 +123,13 @@ async def handle_media(message: types.Message):
     os.makedirs("./downloads", exist_ok=True)
     await bot.download_file(file.file_path, file_path)
 
-    status = await message.reply(f"⏳ Saving {file_type} to Google Drive...")
+    status = await message.reply(f"Saving {file_type} to Google Drive...")
     try:
-        await upload_to_drive(file_path, file_type, message.document.file_name if message.document else None)
+        await upload_to_drive(file_path, file_type,
+                               message.document.file_name if message.document else None)
         await message.delete()
         await status.delete()
-        confirm = await message.answer(f"{file_type.capitalize()} saved to Google Drive!")
+        confirm = await message.answer(f"{file_type.capitalize()} saved to Google Drive.")
         await asyncio.sleep(3)
         await confirm.delete()
     except Exception as e:
